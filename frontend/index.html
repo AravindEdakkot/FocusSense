@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FocusSense LSTM</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>🧠 FocusSense (LSTM)</h2>
+
+    <textarea 
+        id="typingBox" 
+        rows="8" 
+        placeholder="Start typing here to analyze your focus..."
+    ></textarea>
+
+    <button onclick="sendData()">Analyze</button>
+
+    <p id="result">Your result will appear here...</p>
+
+</div>
+
+<script>
+let keystrokes = [];
+
+// Capture keystrokes
+document.getElementById("typingBox").addEventListener("keydown", function(event) {
+    keystrokes.push({
+        key: event.key,
+        time: performance.now()
+    });
+});
+
+// Send data to backend
+function sendData() {
+    if (keystrokes.length < 5) {
+        document.getElementById("result").innerText = "⚠️ Type more before analyzing!";
+        return;
+    }
+
+    fetch("http://127.0.0.1:5000/predict", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(keystrokes)
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("result").innerText =
+            `Prediction: ${data.label} (${(data.confidence * 100).toFixed(2)}%)`;
+    })
+    .catch(() => {
+        document.getElementById("result").innerText = "❌ Error connecting to server";
+    });
+}
+</script>
+
+</body>
+</html>
