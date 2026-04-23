@@ -1,27 +1,41 @@
 import numpy as np
 
-def extract_features(df):
-    times = df["time"].values
+def extract_sequence(df, window_size=8, step=2):
+    sequences = []
 
-    # Convert ms → seconds properly
-    delays = np.diff(times) / 1000.0  
+    for i in range(0, len(df) - window_size + 1, step):
+        window = df.iloc[i:i+window_size]
 
-    if len(delays) == 0:
-        return [0, 0, 0, 0, 0]
+        times = window["time"].values
+        keys = window["key"].values
 
-    total_time_sec = (times[-1] - times[0]) / 1000.0
+        # 🔹 Compute delays (in seconds)
+        delays = np.diff(times) / 1000.0
 
-    # ✅ FIXED WPM (use words, not characters)
-    words = len(df) / 5  # standard rule
-    wpm = words / (total_time_sec / 60 + 1e-5)
+        # Skip invalid windows
+        if len(delays) < 2:
+            continue
 
-    avg_delay = np.mean(delays)
-    variance = np.var(delays)
+        # 🔹 Filter unrealistic values
+        delays = delays[(delays > 0.05) & (delays < 2)]
 
-    # Better pause threshold
-    pause_count = np.sum(delays > 1.0)
+        if len(delays) < 2:
+            continue
 
-    backspaces = sum(1 for k in df["key"] if k == "Backspace")
-    backspace_rate = backspaces / len(df)
+        # 🔹 Total time
+        total_time = (times[-1] - times[0]) / 1000.0
 
-    return [wpm, avg_delay, pause_count, backspace_rate, variance]
+        # 🔹 Features
+        #wpm = min(120, (len(window)/5) / (total_time/60 + 1e-5))  # capped
+        avg_delay = np.mean(delays)
+        pause = np.sum(delays > 0.5)
+        #error = np.sum(keys == "Backspace") / len(window)
+        variance = np.var(delays)
+
+        sequences.append([
+            avg_delay,
+            pause,
+            variance
+        ])
+
+    return np.array(sequences)

@@ -1,52 +1,50 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
+from model import create_model
+import joblib
+from features import extract_sequence
 
-# Load dataset
 data = pd.read_csv("./real_data.csv")
 
-# Features and labels  
-X = data[["wpm", "avg_delay", "pause", "error", "variance"]].values
-y = data["label"].values
+X = []
+y = []
+
+for session_id in data["session_id"].unique():
+    session = data[data["session_id"] == session_id]
+
+    seq = extract_sequence(session)
+
+    if len(seq) < 5:
+        continue
+
+    X.append(seq[:5])
+    y.append(session["label"].iloc[0])
+
+X = np.array(X)
+y = np.array(y)
+
+print("X shape:", X.shape)
 
 # Encode labels
 le = LabelEncoder()
 y = le.fit_transform(y)
 y = to_categorical(y)
-
-# 🔥 Normalize features (VERY IMPORTANT)
+print("Label mapping:", list(le.classes_))
+# Scale
 scaler = StandardScaler()
-X = scaler.fit_transform(X)
+X = scaler.fit_transform(X.reshape(-1, 3)).reshape(X.shape)
 
-# Save scaler for later use
-import joblib
 joblib.dump(scaler, "scaler.pkl")
 
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
+# Model
+model = create_model((X.shape[1], X.shape[2]))
 
-# ✅ Dense model (better for your case)
-model = Sequential([
-    Dense(64, activation='relu', input_shape=(X.shape[1],)),
-    Dropout(0.2),
-    Dense(32, activation='relu'),
-    Dense(3, activation='softmax')
-])
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-model.compile(
-    optimizer='adam',
-    loss='categorical_crossentropy',
-    metrics=['accuracy']
-)
-
-model.fit(X_train, y_train, epochs=40, batch_size=8, validation_data=(X_test, y_test))
+model.fit(X, y, epochs=15, batch_size=4)
 
 model.save("model.h5")
 
-print("✅ Model trained and saved!")
+print("✅ Training complete")
