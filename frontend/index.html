@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FocusSense</title>
+</head>
+<body>
+
+<h2>🧠 FocusSense - Real Typing Capture</h2>
+
+<textarea id="typingBox" rows="10" cols="50" placeholder="Start typing..."></textarea>
+<br><br>
+
+<button onclick="sendData()">Analyze</button>
+
+<p id="result"></p>
+
+<script>
+let keystrokes = [];
+
+document.getElementById("typingBox").addEventListener("keydown", function(event) {
+    keystrokes.push({
+        key: event.key,
+        time: Date.now()
+    });
+});
+
+function sendData() {
+    fetch("http://127.0.0.1:5000/predict", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(keystrokes)
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("result").innerText = "Prediction: " + data.label;
+    });
+}
+</script>
+
+</body>
+</html>
